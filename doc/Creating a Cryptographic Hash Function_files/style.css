@@ -1,0 +1,399 @@
+body
+{
+	font-family:"arial";
+	margin:0px;
+	color: #222277;
+}
+
+/* No border around images */
+:link img
+{
+	border:0px;
+}
+
+:visited img
+{
+	border:0px;
+}
+
+h1
+{
+	background: #cccce4;
+}
+
+.header1
+{
+	width: 100%;
+	height: 100px;
+	background: #cccce4;
+	overflow: hidden;
+}
+
+.header2
+{
+	background: #999999;
+	height: 30px;
+}
+
+.header3
+{
+	background: #ffdd00;
+	height: 3px;
+}
+
+/*
+ * These need to be in this order
+ * a:link {color: #FF0000}
+ * a:visited {color: #00FF00}
+ * a:hover {color: #FF00FF}
+ * a:active {color: #0000FF}
+ */
+
+.menu_1holder
+{
+	position:absolute;
+	top:0;
+	width:100%;
+}
+
+
+.menu_1
+{
+	height: 100px;
+	margin-left: auto;
+	margin-right: auto;
+}
+
+.menu_1 a:link{color: #333333}
+.menu_1 a:visited {color: #333333}
+.menu_1 a:hover {color: #777777}
+.menu_1 a:active {color: #777777}
+.menu_1 a
+{
+	font-weight: bold;
+	font-size: small;
+	text-decoration: none;
+	display:block;
+}
+
+.menu_td
+{
+	background-image: url(/images/menu/menu1.gif);
+	width:98%;
+}
+
+.menu_2
+{
+	font-weight: bold;
+	font-size: medium;
+	color: #444466;
+	background: #ddddee;
+	width: 9%;
+}
+
+.menu_2 a:link{color: #444466}
+.menu_2 a:visited {color: #444466}
+.menu_2 a:hover {color: #777799}
+.menu_2 a:active {color: #777799}
+.menu_2 a
+{
+	text-decoration: none;
+	display:block;
+}
+
+.menu_2 ul
+{
+	margin: 0;
+	padding: 0;
+	list-style:none;
+	list-style-type:none;
+}
+
+.menu_2 li
+{
+	border-bottom: 1px solid #9999bb;
+	margin: 10px;
+}
+
+.menu_2 li:hover ul
+{
+	display:block;
+}
+
+.menu_2 ul ul
+{
+	display:none;
+	border-left: 1px solid #9999bb;
+	border-bottom: 1px solid #9999bb;
+	top:0;
+	left:0;
+	margin-bottom:-1px;
+}
+
+.menu_2 ul ul li
+{
+	border-bottom: 0;
+	margin: 5px;
+	padding:0;
+}
+
+.maintext
+{
+	margin:20px;
+	padding:20px;
+}
+
+.maintext a:link{color: #000000}
+.maintext a:visited {color: #333333}
+.maintext a:hover {color: #555555}
+.maintext a:active {color: #555555}
+.maintext pre
+{
+	color: #111111;
+	background: #f8f8f8;
+	margin-left: 20px;
+	margin-right: 20px;
+	padding-left: 20px;
+	padding-right: 20px;
+}
+
+.main_page ul
+{
+	padding-left: 10px;
+}
+
+.main_page li
+{
+	list-style-type:none;
+}
+
+.main_page li h3
+{
+	padding-left: 20px;
+	background: #ddddff;
+}
+
+.main_page h4
+{
+	text-align: center;
+	color: #333333
+}
+
+.footer1 a:link{color: #ffffff}
+.footer1 a:visited {color: #ffffff}
+.footer1 a:hover {color: #dddddd}
+.footer1 a:active {color: #dddddd}
+.footer1 a
+{
+	font-size: small;
+	font-weight: bold;
+	text-decoration: none;
+}
+
+.footer1
+{
+	text-align: center;
+	width: 100%;
+	height: 20px;
+	background: #999999;
+}
+
+.footer2 a:link{color: #000000}
+.footer2 a:visited {color: #000000}
+.footer2 a:hover {color: #666666}
+.footer2 a:active {color: #666666}
+.footer2 a
+{
+	font-size: small;
+	text-decoration: none;
+}
+
+.footer2
+{
+	width: 100%;
+}
+
+.pheader
+{
+	font-weight: bold;
+	font-size: x-large;
+}
+
+.pricet
+{
+	font-weight: bold;
+}
+
+.pricev
+{
+	font-weight: bold;
+	color: #cc3333;
+}
+
+.help_text p
+{
+	font-size: small;
+	position:relative;
+	left:20px;
+}
+
+/* column container */
+.colmask
+{
+	clear:both;
+	float:left;
+	width:100%;	/* width of whole page */
+	overflow:hidden;	/* This chops off any overhanging divs */
+}
+/* common column settings */
+.colleft
+{
+	float:left;
+	width:100%;
+	position:relative;
+}
+.col1,
+.col2
+{
+	float:left;
+	position:relative;
+	padding:0 0 1em 0;
+	overflow:hidden;
+}
+.doublepage .colleft
+{
+	right:50%;	/* right column width */
+}
+.doublepage .col1
+{
+	width:46%;	/* left column content width (column width minus left and right padding) */
+	left:52%;	/* right column width plus left column left padding */
+}
+.doublepage .col2
+{
+	width:46%;	/* right column content width (column width minus left and right padding) */
+	left:56%;	/* (right column width) plus (left column left and right padding) plus (right column left padding) */
+}
+
+.comments
+{
+	background:#f4f4ff;
+	margin: 10px;
+	padding: 10px;
+}
+
+.comments h2
+{
+	text-align:center;
+	margin: 5px;
+	padding: 0;
+}
+
+.comments .a_name
+{
+	color: #990077;
+	font-weight: bold;
+	font-size: large;
+}
+
+.comments .name
+{
+	font-weight: bold;
+	font-size: large;
+}
+
+.comments .said
+{
+	font-weight: bold;
+}
+
+.comment_text
+{
+	font-size: small;
+	margin: 0px 0px 10px;
+	padding: 0;
+	border-top: 1px solid #9999bb;
+}
+
+.bread
+{
+	position:absolute;
+	left:200px;
+	top:105px;
+	color: #ffffff;
+	margin:0;
+	padding:0;
+}
+
+.bread a:link{color: #ffffff}
+.bread a:visited {color: #ffffff}
+.bread a:hover {color: #dddddd}
+.bread a:active {color: #dddddd}
+.bread a
+{
+	font-weight: bold;
+	text-decoration: none;
+}
+
+.bread ul
+{
+	margin:0;
+	padding:0;
+}
+
+.bread li
+{
+	list-style: none;
+	display: inline;
+	margin:0;
+	padding:0;
+}
+
+.bread li:after
+{
+	content: "\0020 \0020 \0020 \00BB \0020";
+}
+
+/*.bread li:first-child:before
+{
+	content: "";
+}*/
+
+.update
+{
+	background: #cccccc;
+	font-size: 26px;
+	font-weight: bold;
+	text-decoration: none;
+}
+
+.update a
+{
+	text-decoration: none;
+}
+
+span.bold
+{
+	font-weight: bold;
+}
+
+span.emphasis
+{
+	font-style:italic;
+}
+
+span.manpage
+{
+	font-weight: bold;
+}
+
+h2.nroffsh
+{
+	background: #cccce4;
+	height: 30px;
+}
+
+p.level1
+{
+	margin: 0px 50px 0px;
+}

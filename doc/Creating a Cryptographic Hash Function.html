@@ -1,0 +1,1150 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head>
+<meta http-equiv="Content-type" content="text/html; charset=UTF-8">
+<link rel="alternate" type="application/rss+xml" href="https://locklessinc.com/feed.rss" title="Lockless Inc. Articles">
+
+<title>Creating a Cryptographic Hash Function</title>
+<meta name="description" content="The Pitfalls in creating a Cryptographic Hash Function">
+<meta name="robots" content="index,follow">
+<link rel="stylesheet" type="text/css" href="Creating%20a%20Cryptographic%20Hash%20Function_files/style.css">
+<link rel="icon" type="image/vnd.microsoft.icon" href="https://locklessinc.com/favicon.ico">
+</head><body>
+
+<div class="header1">
+<a href="https://locklessinc.com/" title="Lockless Inc"><img src="Creating%20a%20Cryptographic%20Hash%20Function_files/header_bg.jpg" alt="Lockless Inc" border="0"></a>
+</div>
+
+<table width="100%" cellspacing="0" cellpadding="0">
+	<tbody><tr class="header2"><td colspan="3"></td></tr>
+	<tr class="header3"><td colspan="3"></td></tr>
+	<tr>
+		<td class="menu_2" valign="top">
+		<ul>
+		<li><a href="https://locklessinc.com/" title="Lockless Inc">Lockless Inc</a></li>
+		<li><a href="https://locklessinc.com/cindex.shtml">Purchase »</a>
+		<ul>
+			<li><a href="https://locklessinc.com/products/linux.shtml">Linux</a></li>
+			<li><a href="https://locklessinc.com/products/windows.shtml">Windows</a></li>
+			<li><a href="https://locklessinc.com/products/developers.shtml">Developers</a></li>
+		</ul>
+		</li>
+		<li><a href="https://locklessinc.com/benchmarks.shtml">Benchmarks</a></li>
+		<li><a href="https://locklessinc.com/install.shtml">Installation</a></li>
+		<li><a href="https://locklessinc.com/articles/">Articles</a></li>
+		<li><a href="https://locklessinc.com/technical.shtml">Technical</a></li>
+		<li><a href="https://locklessinc.com/downloads/">Downloads</a></li>
+		<li><a href="https://locklessinc.com/man/">Documentation</a></li>
+		<li><a href="https://locklessinc.com/whatsnew.shtml">What's New</a></li>
+		<li><a href="https://locklessinc.com/about.shtml">About Us</a></li>
+		<li><a href="https://locklessinc.com/help.shtml">Help</a></li>
+		</ul>
+		</td>
+		<td class="maintext">
+
+<h1 align="center">Creating a Cryptographic Hash Function</h1>
+
+<p>A Cryptographic hash function is something that mechanically takes an
+ arbitrary amount of input, and produces an "unpredictable" output of a 
+fixed size.  The unpredictableness isn't in the operation itself.  
+Obviously, due to its mechanical nature, every time a given input is 
+used the same output will result.  It means that you cannot easily craft
+ an input to produce a wanted output, or similarly guess what input 
+produced a given output; Easily create two different inputs that give 
+the same output hash;  Easily create a suffix or prefix to a given input
+ to create a wanted hash;  Or in different terms, distinguish the output
+ from an abstract "Random Oracle".</p>
+
+<p>This differs from non-cryptographic hash functions used for 
+high-speed hash-tables or other data structures.  Those are designed to 
+produce high enough quality statistical randomness to fulfil their 
+purposes.  However, they aren't designed to defeat a determined 
+adversary who can craft inputs and outputs.  Such an adversary might be 
+willing to spend a large amount of computer time or memory to find a 
+matching hash value.  If the hash algorithm isn't secure, then the 
+adversary can perform their attack faster than on an ideal hash 
+function.</p>
+
+<p>An ideal hash function produces an output of n bits.  This means that the output can have up to 2<sup>n</sup> states.  Thus, if an adversary wants to find a match to a given value, around 2<sup>n</sup>
+ different inputs will need to be tried to get a match.  However, if the
+ matching value isn't given, the Birthday Paradox means that only around
+ the square root of this value is needed (2<sup>n/2</sup>).  This is 
+because we can check all possible pairs for a match.  The number of such
+ pairs increases as the square of the number of outputs.</p>
+
+<p>If Quantum Computers scale upwards enough (as of this writing, they 
+can factor 15=3×5) then Grover's algorithm becomes applicable.  It 
+allows a much faster search of hash outputs, basically acting like the 
+number of output bits have been halved.  Fortunately, this attack is 
+easy to defeat: just double the number of output bits.  This threat is 
+the reason why 512 bit hashes are starting to become popular.  Testing 2<sup>512</sup>
+ states is obviously impossible.  However, finding a collision might 
+only take the square root of the square root of this, i.e. 2<sup>128</sup> work.  This security is the level of modern block ciphers.</p>
+
+<p>So you've decided to create your own cryptographic hash function.  
+The correct response is: Don't!  There exist many well designed and more
+ importantly, well tested cryptographic hash functions out there.  Use 
+them instead.  The chance of you being able to make one better is small,
+ and the chance of you making something much worse is great.  However, 
+lets assume that you can't.  Assume that you don't trust them for one 
+reason or another.  Many published functions have arbitrary constants.  
+You may feel that the authors may (or may not) have tweaked the 
+constants in some way to have a subtle weakness.</p>
+
+<h3>The Merkle-Damgård construction</h3>
+<p>Many modern cryptographic hash functions are based on the 
+"Merkle-Damgård construction".  This uses a compression function to take
+ an input message block, and a previous hash to produce a new hash.  The
+ hashes are chained along as each message is added to produce an ending 
+hash.  Finally, some kind of terminating feature is used (via a padding 
+format, or appending the total length, or both) so that a final hash can
+ be created that is collision resistant.</p>
+
+<p>It can be proved that if the compression function is collision 
+resistant, and if the correct type of termination is done, then the 
+result is also collision resistant.  However, there are other properties
+ of this construction that are very unlike an ideal hash function.  For 
+example, an attacker given just a hash, can predict what a specially 
+crafted suffix block to the unknown message will convert the hash into. 
+ This weakness is why you cannot use many of the SHA variants as a HMAC.
+  (However, with a bit of care, you can hash twice to make a HMAC from 
+them.)</p>
+
+<p>Similarly, since it is trivial to lengthen a hash-chain, once one 
+collision is known, it is easy to create many collisions.  Just append 
+blocks to the chain using the same message blocks.  If the (same length)
+ prefix hashes to the same value, the suffix will perform the same 
+operations, and produce identical results.</p>
+
+<p>Another serious weakness to the M-D construction is the multi-collision attack.  It takes 2<sup>n/2</sup>
+ work to find one collision.  However, to find many more related 
+collisions it doesn't take much more work.  Basically, you can find a 
+block (or sequence of blocks) that given a hash input will hash to the 
+same hash output, but with differing message inputs.  It takes the 
+typical birthday-attack time to do this, and you have two messages that 
+hash to the same value.  Now, look at some other blocks on the M-D 
+chain.  Apply the same attack to those blocks.  After a similar amount 
+of work, you now have 2×2=4 messages that hash to the same value.  
+Repeat.  Each time you you get a new pair of collisions, you double the 
+number of messages that hash to the wanted result as the available 
+combinations increase geometrically.</p>
+
+<p>This attack means that if you use a pair of of M-D based hashes to 
+protect something, it isn't much better than using one.  The 
+multi-collision attack takes roughly n/2 × 2<sup>n/2</sup> time to find enough combinations with the first hash to run a 2<sup>n/2</sup>-time
+ birthday attack on the second hash.  This is only moderately longer 
+than just one hash.  If you had used a double-length hash, it would have
+ been roughly 2<sup>n/2-log(n)</sup> stronger.</p>
+
+<p>Fortunately, it is relatively simple to fix these problems.  Just 
+double the amount of internal state (a wide-pipe design).  This doubling
+ means that the internal birthday-attack now takes of order 2<sup>n</sup>
+ time.  Since this is the same as finding a specific collision, no 
+advantage is now gained.  Unfortunately, the doubling makes the hash 
+function construction less efficient.  Related, is the ability to just 
+not output some of the final bits.  The SHA-234 and SHA-384 functions 
+are based on the SHA-256 and SHA-512 functions, with some output bits 
+elided.  The missing bits mean that extension attacks are impossible.  
+It also weakens the multi-collision a bit.  Applying this tactic fully, 
+if you used just half the output of SHA-512, it would be much stronger 
+than SHA-256.</p>
+
+<h3>Keccak</h3>
+<p>The recent winner of the competition to create SHA-3 is the Keccak 
+algorithm.  This doesn't use a Merkle-Damgård construction, but uses a 
+"sponge" instead.  A sponge soaks up message bits slowly, and then 
+squeezes output bits slowly.  In other words, it is a generalization of 
+the wide-pipe M-D method, with the pipe being arbitrarily large.</p>
+
+<p>A sponge is based on a mixing function instead of a compression 
+function.  The new message bits can either replace old sponge bits, or 
+be xored with them.  Then a mixing function is used to distribute the 
+information contained in those bits throughout the sponge.  Once enough 
+mixing is done, further message bits can be added.  Provided the number 
+of message bits per block is less than or equal to half the total bits 
+in the sponge, entropy considerations mean that the soaking-up phase is 
+secure.  In that extreme, it is identical to a M-D wide-pipe design.</p>
+
+<p>The final phase of a sponge is squeezing out the output bits.  This 
+is done in the reverse way in which information was added.  No more than
+ half the bits in the sponge can be removed at any one time for it to 
+remain secure.  After each removal, a secure mixing should follow.  
+Finally, no more bits should be removed in total than there are in the 
+sponge.  If more are used, then by the pigeon-hole principle it is easy 
+to show that the Birthday Paradox attack will work with an increased 
+efficiency.</p>
+
+<p>Keccak is designed to be very fast in hardware.  Most of the mixing 
+is done with hardware-friendly choices such as parity operations.  The 
+nonlinearity is due to a simple 
+bitwise operation.  (Nothing complex like integer addition is used.)  
+Many rounds are used so that the small amount of nonlinearity snowballs 
+into enough complexity so that the mix function is "random" enough.</p>
+
+<h3>Compression and Mixing Functions</h3>
+<p>The compression or mixing function is the core to many hash function 
+designs.  It takes m message bits, h hash bits, and then acts like a 
+black box that produces h new hash bits.  The compression function needs
+ to diffuse and confuse the effects of the message bits into all of the h
+ output bits.  A secure compression function acts like a keyed hash 
+function that takes only a single fixed input block size.  It is 
+expected to have all the collision resistances that such a hash function
+ would need.</p>
+
+<p>The difficult task is coming up with a good compression function.  
+One way to do that is to use some other well known cryptographic 
+primitive.  An example is a block cipher. 
+ One way is to use the h input bits as a key, and then "encrypt" the 
+message block with it.  This isn't quite secure yet.  You need to xor 
+the result with either the key, the message, or both.  Other 
+possibilities exist, but the above isn't used very often in practice.  
+The reason is that block ciphers tend to be too narrow to be of much 
+use.  Hash functions need to have an output bit size that is double that
+ of a typical block cipher.</p>
+ 
+<p>What we will do instead is use a Feistel structure to construct a 
+secure compression function from smaller components.  This takes a pair 
+of inputs, a left and a right half.  The left half is then passed into a
+ randomizing function, and the result is xored onto the right half.  
+Both halves are then swapped.  This is a reversible operation, so is 
+information preserving.  By repeating this set of operations (called a 
+"round") multiple times, we can reversibly mix the information in a 
+highly secure way between the left and right halves.  To convert this 
+permutation into a compression function, we can then drop the last right
+ half, and keep the left part.</p>
+
+<p>The question becomes how many rounds are needed?  Obviously, the 
+better the job the randomizing function does, the less rounds we need.  
+The converse is that if the randomizing function is linear, even an 
+infinite number of rounds won't help.  So, we need some sort of 
+non-linear function, the characteristics of which determine the 
+security.</p>
+
+<p>Assume the randomizing function is amoungst the class of perfectly 
+secure ones, and each round uses a different member from that class.  
+This is the ideal case, which we can only hope to approach.  It turns 
+out that if you do three rounds with this, the result isn't quite mixed 
+well enough.  This can be proved with differential analysis:  Try two 
+inputs into the Feistel Ladder.  Let the left halves be identical, and 
+the right halves differ by some delta.  After one round, the left halves
+ will act identically.  This means that the inputs into the second round
+ will differ by the delta in the left half, and zero on the right half. 
+ After two rounds, the right half (which is the old left half) will 
+differ by the delta.  The left half will be the "encryption" of two 
+values differing by the delta.</p>
+
+<p>So we would like all possible outputs from the third round to be 
+equally likely.  This unfortunately isn't the case.  Look at the case 
+where the left half difference is the delta, and right half difference 
+is zero.  What is the chance for this to happen in the above?  Well... 
+if the encryptions both encrypt to the same value we get that result.  
+The chance for that is 1 in 2<sup>n/2</sup>.  However, the wanted probability is 1 in 2<sup>n</sup>.
+  Thus we have found a weakness, and the three-round version isn't 
+secure.  Four rounds are needed, even with a perfectly random function.</p>
+
+<p>If four rounds are the lower limit, how close can we approach it with
+ a reasonable round function?  We want to try the most random-looking 
+things we can.  A good choice might be a secure block cipher.  What is 
+the limit now?  It turns out you can use the above differential analysis
+ to show that five rounds aren't enough.  (Lars Knudsen showed this with
+ his analysis of DEAL.)  Use the same inputs as above in the first 
+round.  Assume at the end of the fifth round, have the left differences 
+differ by zero, and the right halves by the delta.  Work backwards.  In 
+the third round we get a contradiction.  Basically, we find that 
+E3(E2(x))=E3(E2(x^delta)).  Where the E functions correspond to those 
+chosen at each round.  Now these functions are from a block cipher.  
+That means that they are permutations.  Thus we end up with a 
+combination of permutations with differing inputs that yields the same 
+output.  This is impossible.  The resulting impossible differential can 
+be used to attack the algorithm, and more rounds are needed.</p>
+
+<p>Another attack is to look at the bitwise polynomial form of the 
+resulting function as a black-box.  Any function can be written as a 
+polynomial of the input bits, with each coefficient being zero or one.  
+If this polynomial has low order, then it is reversible in some sense, 
+and the compression function will be weak.  What we want is the 
+polynomial to have terms of all possible orders.  It turns out that 
+linear operations don't touch the polynomial order.  Thus this is just a
+ check of testing exactly how nonlinear our function is.  The higher the
+ nonlinearity the better.</p>
+
+<p>We just need to be able to work out the approximate effect of 
+operations on the polynomial's order.  A linear operation, like "xor", 
+will return the maximum order of its two inputs.  A non-linear simple 
+operation, like "and", will return the sum of the orders of its inputs. 
+ (This is assuming that the inputs are uncorrelated.)  An S-box will 
+return an order that is equal to its inputs multiplied by half the log 
+of the input bit-depth.  The S-box acts like a binary polynomial 
+function, and the binomial theorem can be used to show that this is the 
+most common term.  Other more complex operations can be built out of 
+simpler ones.</p>
+
+<p>So we want a nonlinear randomizing function to use in the Feistel 
+Ladder.  Block ciphers are a little slow.  Besides, using one is like 
+begging the question.  It is possible to construct a block cipher from a
+ hash, and a hash function from a block cipher.  However, it is better 
+for efficiency to use optimized techniques for each though.  Thus we 
+will likely need more than the six rounds determined above.  However, if
+ each round is faster by enough, the resulting compression function will
+ be quicker to evaluate even though it is built from a less secure 
+foundation.</p>
+
+<p>The question becomes how nonlinear to make each round?  The more 
+nonlinear, the more expensive they are.  I'd like to make the argument 
+that using highly nonlinear rounds, with fewer of them is better than 
+using many many slightly nonlinear rounds.  The problem is that 
+attackers on the cryptographic system will try to reduce the 
+nonlinearity.  A small reduction can be catastrophic because the way 
+nonlinearity compounds exponentially.</p>
+
+<p>Assume we have two systems.  The first uses 20 rounds, with a 
+nonlinear factor of two for each round.  The second system uses 8 
+rounds, with a nonlinear factor of five.  The factor refers to how the 
+underlying bitwise polynomial increases in degree.  Each round will 
+multiply the degree of the polynomial by this amount, assuming the 
+inputs are diffused correctly, and there isn't too much cancellation.  
+What we would like is the resulting number to be much larger than the 
+maximal degree possible.  If we have 512 bits, then we want 2<sup>20</sup>=1048576&gt;&gt;512, and 5<sup>8</sup>=390625&gt;&gt;512.</p>
+
+<p>As can be seen, both systems are secure.  However, what happens if a 
+crafty adversary manages to reduce the effective multiplicative factor 
+per round?  (They can do this by choosing particular forms of inputs 
+that causes coefficients to statistically cancel.)  Lets say that they 
+can reduce the effective factor by 0.5 per round, the results are 1.5<sup>20</sup>=3325, and 4.5<sup>8</sup>=168151.  Both are still secure, but the one with less nonlinearity is looking shaky, with hardly any margin left.</p>
+
+<p>We would like to make a highly non-linear round function.  Using 
+S-boxes has traditionally been the method to do this.  However, S-boxes 
+have their issues.  Firstly, it is difficult to simultaneously make them
+ have high entropy (needed for the high nonlinearity), and to have low 
+entropy for their description.  If your S-boxes seem arbitrary, then 
+people may think you have hidden some sort of back door in them.  AES 
+gets around this by using a finite field to generate it's S-boxes.  This
+ hasn't stopped people from feeling uneasy about their algebraic nature.</p>
+
+<p>A second problem with S-boxes is that they assume that accessing an 
+entry within them is O(1).  This might seem true, but modern machines 
+have multiple layers of cache.  This means that subtle timing attacks 
+might be possible due to the different speeds of access.  (AES was 
+famously attacked this way by Dan Bernstein.)  This is one of the 
+reasons why AES instructions have been added to recent Intel processors.</p>
+
+<p>Finally, S-boxes are limited in size.  They can't get too large, as 
+the memory to describe them grows exponentially with their input size.  
+This means that they suffer from the effects of the "law of small 
+numbers".  Small numbers have many many patterns within them, simply 
+because there aren't many small numbers to begin with.  Patterns are the
+ enemy of someone trying to construct a cryptographic primitive.  You 
+need to be very careful and make sure someone can't use something like 
+differential analysis on your S-boxes to weaken your algorithm.  
+Basically, any statistical weakness in your S-boxes can be used as a 
+foothold in an attack.  Testing for any possible weakness is difficult.</p>
+
+<h3>A Cryptographic Hash Function</h3>
+<p>If we avoid using S-boxes, and would like to have high nonlinearity, 
+the possibility of using multiply instructions appeals.  Multiplication 
+is the very definition of nonlinearity.  Unfortunately, we can't really 
+let both inputs to the multiply be controlled by the user, as that gives
+ them too much control over the output.  However, we can use a multiply 
+as a super-powered add instruction by multiplying by a known constant.</p>
+
+<p>A multiply sends information "upwards", so if it is the only data 
+movement, then the lower bits will not be mixed enough.  Basically, we 
+can just look at the lowest bit (which will have only simple linear 
+dependencies), and solve for it.  Next, we can look at the 
+next-to-lowest bit, and solve for that.  Each solved bit gives enough 
+information to solve the next.  This means that we need to be able to 
+send information "downwards" as well to have security.</p>
+
+<p>A very interesting operation is the "folded multiply".  Take an n-bit
+ number.  Multiply it by an n-bit constant.  The result is 2n bits long.
+  Now, take the top n bits of the result, and xor them with the bottom n
+ bits.  What have we got now?  Well... every output bit depends on every
+ input bit.  This is optimal diffusion.  The result is also very 
+nonlinear, with each bit depending in a complex way on many others.  
+This fact is used to create a fast psuedorandom number generator in this
+ <a href="https://locklessinc.com/articles/improved_rng">article</a></p>
+
+<p>The question is how nonlinear is the folded multiply?  The answer to 
+that depends on the size of the multiply operation.  We are multiplying 
+two numbers together, which typically will have about half their bits 
+set.  So, in the sum corresponding to that multiply, about one quarter 
+of the bits will be ones.  Thus each output bit will be the result of a 
+"random" n/4 bit sum, modified by potential carries from below.  So the 
+question becomes, statistically, how far do carries propagate?  The 
+answer to that is log<sub>2</sub>(n/4) binary places.</p>
+
+<p>It isn't quite so simple though.  The bits in the middle of the 
+output get slightly less carries than the top or bottom bits.  To see 
+this, draw a triangle representing the total number of bits summed in 
+each column of the 2n-bit result.  The peak of that triangle is in the 
+middle.  The folding operation then moves that peak to the top and 
+bottom.  The middle of the n-bit result is thus the xor of two 
+half-sized sums.  Thus the result varies from about log<sub>2</sub>(n) - 2 in the edges, to log<sub>2</sub>(n)
+ - 3 in the middle.  Averaging between them since the mixing is very 
+good, we get an bitwise polynomial order multiplication factor of log<sub>2</sub>(n) - 2.5 per folded multiply operation.</p>
+
+<p>Since we now know how much nonlinearity each round improves our 
+mix/compression function by, we can work out how many rounds we need.  
+Basically we want a number of rounds, r, such that (log<sub>2</sub>(n) - 2.5)<sup>r</sup> &gt;&gt; 2n.  The question becomes how much greater?  To work that out, we can compare to some other cryptographic algorithms.</p>
+
+<p>The AES block cipher uses an S-box for its nonlinearity.  The 
+eight-bit box therefor can be approximated as multiplying the polynomial
+ order by four for each round.  There are ten rounds for 128 bit AES, so
+ we have the ratio 4<sup>10</sup>/128 = 8192.  The Keccak hash algorithm
+ uses a single nonlinear operation per sub-round.  Assuming optimal 
+mixing, this doubles the polynomial order each time.  There are 24 
+rounds, and 1600 bits of internal state.  So we have the ratio 2<sup>24</sup>/1600 = 10485.  Using these two as benchmarks, we can expect that a factor of above eight thousand or so seems to be secure.</p>
+
+<p>So, for our case, we will assume a 256 bit hash function, with 512 
+bits of internal state.  This means n = 256.  Simple arithmetic shows 
+that if we choose nine rounds we have 5.5<sup>9</sup>/512 = 8995 as a 
+safety factor.  Nine rounds is about twice as many as what would be 
+optimal, but our nonlinear mix function isn't perfect.  If the number of
+ bits is increased, it turns out that nine rounds is still good up until
+ unreasonably large hash sizes.  For example, let n = 8192 (an eight 
+kilobyte hash), then we have 10.5<sup>9</sup>/16384 = 94686; where it 
+looks like we could decrease by a round.  At even higher (completely 
+unrealistic) values more rounds are needed though.</p>
+
+<p>Before implementing the hash function, we will need to have a way of 
+implementing arithmetic on large unsigned integers.  Fortunately, it 
+isn't difficult to describe how to do math on a 2n-bit integer in terms 
+of n-bit components.  This isn't the most efficient way of doing things,
+ but will suffice to test the results.  A C++ template class that 
+implements just the bits we need looks like:</p>
+
+<pre><code>
+#include &lt;string.h&gt;
+#include &lt;string&gt;
+#include &lt;vector&gt;
+#include &lt;stdexcept&gt;
+
+template &lt;typename T, typename T_half, int size&gt;
+
+class double_uint
+{
+private:
+	void fromstring(const std::string &amp;s);
+	std::string tostring(void) const;
+public:
+	T lo_, hi_;
+	enum type_size
+	{
+		tsize = size,
+		hsize = size / 2,
+		qsize = size / 4
+	};
+
+	double_uint(const double_uint &amp;u) : lo_(u.lo_), hi_(u.hi_) {}
+	double_uint(const T_half &amp;hi1, const T_half &amp;hi2, const T_half &amp;lo1, const T_half &amp;lo2)
+		: lo_(T(lo2) + (T(lo1) &lt;&lt; qsize)),
+		  hi_(T(hi2) + (T(hi1) &lt;&lt; qsize)) {}
+	double_uint(const T &amp;hi, const T &amp;lo) : lo_(lo), hi_(hi) {}
+	explicit double_uint(const T &amp;lo) : lo_(lo), hi_() {}
+	explicit double_uint(const std::string &amp;s) {fromstring(s);};
+	double_uint(void) : lo_(), hi_() {}
+
+	/* Hack - basically we are a little-endian integer type */
+	explicit double_uint(const unsigned char *c) {memcpy(this, c, sizeof(*this));}
+	explicit double_uint(size_t len, const unsigned char *c)
+	{
+		if (len &gt;= sizeof(*this))
+		{
+			memcpy(this, c, sizeof(*this));
+		}
+		else
+		{
+			memcpy(this, c, len);
+			memset(reinterpret_cast&lt;unsigned char *&gt;(this) + len, 0, sizeof(*this) - len);
+		}
+	}
+
+	friend std::ostream&amp; operator&lt;&lt; (std::ostream &amp;o, const double_uint &amp;x)
+	{
+		return o &lt;&lt; std::string(x);
+	}
+
+	double_uint&amp; operator= (int x)
+	{
+		lo_ = x;
+		hi_ = T();
+		return *this;
+	}
+	double_uint&amp; operator=(const double_uint &amp;u)
+	{
+		lo_ = u.lo_;
+		hi_ = u.hi_;
+		return *this;
+	}
+
+	operator T() const {return lo_;}
+	operator T() {return lo_;}
+	operator const std::string() const {return tostring();}
+	operator std::string() {return tostring();}
+
+	double_uint operator+= (const double_uint &amp;u)
+	{
+		T old = lo_;
+		lo_ += u.lo_;
+		if (lo_ &lt; old) hi_++;
+		hi_ += u.hi_;
+		return *this;
+	}
+
+	double_uint operator-= (const double_uint &amp;u)
+	{
+		T old = lo_;
+		lo_ -= u.lo_;
+		if (lo_ &gt; old) hi_--;
+		hi_ -= u.lo_;
+		return *this;
+	}
+
+	double_uint operator+ (const double_uint &amp;u) const
+	{
+		double_uint res(*this);
+		return res += u;
+	}
+
+	double_uint operator- (const double_uint &amp;u) const
+	{
+		double_uint res(*this);
+		return res -= u;
+	}
+
+	double_uint operator++ (void)
+	{
+		return *this += double_uint(1);
+	}
+
+	double_uint operator++ (int)
+	{
+		double_uint res(*this);
+		*this += double_uint(0, 1);
+		return res;
+	}
+
+	double_uint operator- (void)
+	{
+		return double_uint(0) - *this;
+	}
+
+	double_uint operator+ (void) const
+	{
+		return *this;
+	}
+
+	double_uint operator&lt;&lt;= (int x)
+	{
+		x &amp;= (tsize - 1);
+		if (x &gt;= hsize)
+		{
+			hi_ = lo_ &lt;&lt; (x - hsize);
+			lo_ = 0;
+			return *this;
+		}
+
+		hi_ &lt;&lt;= x;
+		hi_ += lo_ &gt;&gt; (hsize - x);
+		lo_ &lt;&lt;= x;
+
+		return *this;
+	}
+
+	double_uint operator&gt;&gt;= (int x)
+	{
+		x &amp;= (tsize - 1);
+		if (x &gt;= hsize)
+		{
+			lo_ = hi_ &gt;&gt; (x - hsize);
+			hi_ = 0;
+			return *this;
+		}
+
+		lo_ &gt;&gt;= x;
+		lo_ += hi_ &lt;&lt; (hsize - x);
+		hi_ &gt;&gt;= x;
+
+		return *this;
+	}
+
+	double_uint operator&lt;&lt; (int x) const
+	{
+		double_uint res(*this);
+		return res &lt;&lt;= x;
+	}
+
+	double_uint operator&gt;&gt; (int x) const
+	{
+		double_uint res(*this);
+		return res &gt;&gt;= x;
+	}
+
+	static double_uint halfmul(T x, T y)
+	{
+		T_half x1, x2, y1, y2;
+		x1 = x;
+		x2 = x &gt;&gt; qsize;
+		y1 = y;
+		y2 = y &gt;&gt; qsize;
+
+		T xx1(x1);
+		T xx2(x2);
+		T yy1(y1);
+		T yy2(y2);
+
+		double_uint p1, p2, p3, p4;
+		p1.lo_ = xx1 * yy1;
+		p2.lo_ = xx1 * yy2;
+		p3.lo_ = xx2 * yy1;
+		p4.lo_ = xx2 * yy2;
+
+		p2 &lt;&lt;= qsize;
+		p3 &lt;&lt;= qsize;
+		p4 &lt;&lt;= hsize;
+		return p1 + p2 + p3 + p4;
+	}
+
+	double_uint operator*= (const double_uint &amp;u)
+	{
+		double_uint p1 = halfmul(lo_, u.lo_);
+		double_uint p2 = halfmul(lo_, u.hi_);
+		double_uint p3 = halfmul(hi_, u.lo_);
+
+		p2 &lt;&lt;= hsize;
+		p3 &lt;&lt;= hsize;
+		return (*this = p1 + p2 + p3);
+	}
+
+	double_uint operator* (const double_uint &amp;u) const
+	{
+		double_uint res(*this);
+		return res *= u;
+	}
+
+	double_uint operator^= (const double_uint &amp;u)
+	{
+		lo_ ^= u.lo_;
+		hi_ ^= u.hi_;
+		return *this;
+	}
+
+	double_uint operator^ (const double_uint &amp;u) const
+	{
+		double_uint res(*this);
+		return res ^= u;
+	}
+
+	/* Calculates (self * u, folded in half) xor u */
+	double_uint fold(const double_uint &amp;u) const
+	{
+		typedef double_uint&lt;double_uint, T, tsize * 2&gt; Tdouble;
+
+		Tdouble x(Tdouble::halfmul(*this, u));
+
+		return x.lo_ ^ x.hi_;
+	}
+};
+
+template &lt;class T, class T_half, int size&gt;
+    std::string double_uint&lt;T, T_half, size&gt;::tostring(void) const
+{
+	int num = size / 4;
+
+	static const char hex_symb[] = "0123456789ABCDEF";
+
+	/* Pad with zeros */
+	std::string s(num, '0');
+
+	double_uint&lt;T, T_half, size&gt; v(*this);
+
+	for (int i = num - 1; i &gt;= 0; i--)
+	{
+		s[i] = hex_symb[v.lo_ &amp; 0xf];
+		v &gt;&gt;= 4;
+	}
+
+	return s;
+}
+
+template &lt;class T, class T_half, int size&gt;
+    void double_uint&lt;T, T_half, size &gt;::fromstring(const std::string &amp;s)
+{
+	double_uint&lt;T, T_half, size&gt; temp;
+
+	*this = 0;
+
+	for (std::string::const_iterator i = s.begin(); i != s.end(); i++)
+	{
+		if ((*i &gt;= '0') &amp;&amp; (*i &lt;= '9'))
+		{
+			temp = *i - '0';
+		}
+		else if ((*i &gt;= 'A') &amp;&amp; (*i &lt;= 'F'))
+		{
+			temp = *i - 'A' + 10;
+		}
+		else if ((*i &gt;= 'a') &amp;&amp; (*i &lt;= 'f'))
+		{
+			temp = *i - 'A' + 10;
+		}
+		else
+		{
+			throw std::runtime_error("Invalid hex character\n");
+		}
+
+		*this &lt;&lt;= 4;
+		*this += temp;
+	}
+}
+
+static std::string tostring(const __uint128_t &amp;x)
+{
+	int num = 128 / 4;
+
+	static const char hex_symb[] = "0123456789ABCDEF";
+
+	/* Pad with zeros */
+	std::string s(num, '0');
+
+	__uint128_t v(x);
+
+	for (int i = num - 1; i &gt;= 0; i--)
+	{
+		s[i] = hex_symb[v &amp; 0xf];
+		v &gt;&gt;= 4;
+	}
+
+	return s;
+}
+
+std::ostream&amp; operator&lt;&lt; (std::ostream &amp;o, const __uint128_t &amp;x)
+{
+	return o &lt;&lt; tostring(x);
+}
+</code></pre>
+
+<p>Such a template can be instantiated as a type like:</p>
+<pre><code>
+typedef double_uint&lt;__uint128_t, unsigned long long, 256&gt; u256;
+</code></pre>
+<p>to define our unsigned 256 bit type from the built-in unsigned 128 
+bit types that gcc has.  If you have a 32bit machine, then such types 
+may not exist.  If so, you'll need to use two levels of templates:</p>
+<pre><code>
+typedef double_uint&lt;unsigned long long, unsigned, 128&gt; u128;
+typedef double_uint&lt;u128, unsigned long long, 256&gt; u256;
+</code></pre>
+
+<p>Using the above, we can construct our nine-round mix function:</p>
+<pre><code>
+/* Reversible mix function */
+void hash_step(const u256 &amp;i1, const u256 &amp;i2, u256 &amp;o1, u256 &amp;o2)
+{
+	static const u256 t1, t2, t3, t4, t5, t6, t7, t8, t9;
+	
+	// Insert initialization for constants here
+
+	o1 = i1;
+	o2 = i2;
+
+	o1 += o2.fold(t1);
+	o2 += o1.fold(t2);
+	o1 += o2.fold(t3);
+	o2 += o1.fold(t4);
+	o1 += o2.fold(t5);
+	o2 += o1.fold(t6);
+	o1 += o2.fold(t7);
+	o2 += o1.fold(t8);
+	o1 += o2.fold(t9);
+}
+</code></pre>
+<p>Before we start to think about what multiplication constants to use, 
+we have one issue.  If the inputs are both zero, what happens?  Well... 
+each step involves a folded multiply by a constant with zero.  This 
+causes us to add zero to the other half each time.  (We could choose 
+xor, but addition mixes bits slightly more.)  The result is that the 
+output is always zero, no matter how many rounds we choose.  This is 
+bad.</p>
+
+<p>So we need some way to alter the above so that there are no fixed 
+points, especially ones as obvious as the number zero.  One trick is use
+ an xor operation to modify the rounds.  If we do this right, then zero 
+will be altered, and since each round will xor in a different constant 
+and there will be no obvious fixed points. i.e.</p>
+
+<pre><code>
+/* Reversible mix function */
+void hash_step(const u256 &amp;i1, const u256 &amp;i2, u256 &amp;o1, u256 &amp;o2)
+{
+	static const u256 t1, t2, t3, t4, t5, t6, t7, t8, t9;
+	
+	// Insert initialization for constants here
+
+	o1 = i1;
+	o2 = i2;
+
+	o1 += o2.fold(t1) ^ t1;
+	o2 += o1.fold(t2) ^ t2;
+	o1 += o2.fold(t3) ^ t3;
+	o2 += o1.fold(t4) ^ t4;
+	o1 += o2.fold(t5) ^ t5;
+	o2 += o1.fold(t6) ^ t6;
+	o1 += o2.fold(t7) ^ t7;
+	o2 += o1.fold(t8) ^ t8;
+	o1 += o2.fold(t9) ^ t9;
+}
+</code></pre>
+
+<p>How does this do?  Well... the problem with zero is fixed, but now if
+ both halves are equal to one, then we have a similar issue.  1×t = t.  t
+ ^ t = 0.  So we end up not modifying again.  The trick to finally fix 
+this is to put the xor operation inside the folded multiply:</p>
+
+<pre><code>
+/* Reversible mix function */
+void hash_step(const u256 &amp;i1, const u256 &amp;i2, u256 &amp;o1, u256 &amp;o2)
+{
+	static const u256 t1, t2, t3, t4, t5, t6, t7, t8, t9;
+	
+	// Insert initialization for constants here
+
+	o1 = i1;
+	o2 = i2;
+
+	o1 += (o2^t1).fold(t1);
+	o2 += (o1^t2).fold(t2);
+	o1 += (o2^t3).fold(t3);
+	o2 += (o1^t4).fold(t4);
+	o1 += (o2^t5).fold(t5);
+	o2 += (o1^t6).fold(t6);
+	o1 += (o2^t7).fold(t7);
+	o2 += (o1^t8).fold(t8);
+	o1 += (o2^t9).fold(t9);
+}
+</code></pre>
+<p>The above is looking much better.  Now we just need to come up with 
+some constants to use.  These need to be "random", but still with low 
+entropy.  (They also need to be distinct to avoid slide attacks.)  One 
+common choice is to use the bit-strings that correspond to the square 
+roots of primes.  (Another choice might be the binary expansion of pi.) 
+ Unfortunately, this isn't quite good enough.  Since we are using 
+multiplies, what happens when we start with zero again?  Well, the 
+constant is an approximation to a square root, and then we end up 
+multiplying that approximation by itself.  The result will have many one
+ or zero bits in the upper half depending on whether that approximation 
+is slightly larger or smaller than the exact value.  The long strings of
+ identical bits are worrying.  We should use something other than square
+ roots.</p>
+
+<p>So we choose to use cubic roots of primes to avoid the above issue.  
+Now there are a couple more things to worry about.  The first is 
+scaling.  We will scale the numbers so that the top bit is always a one.
+  This maximizes the size of the resulting product, giving more overlap 
+in the fold operation.  Similarly, we will forcibly set the least 
+significant bit to always be a one.  The combination of the above will 
+yield a full 2n-bit product, rather than having padding zero-bits on the
+ top or bottom.</p>
+
+<p>Thus the completed mixing function looks like:</p>
+<pre><code>
+/* Reversible mix function for 256 bit hash */
+void hash_step(const u256 &amp;i1, const u256 &amp;i2, u256 &amp;o1, u256 &amp;o2)
+{
+	/*
+	 * Cube roots of primes.
+	 * (Square roots don't work as well when folded with zero.
+	 *  The high part becomes nearly all one bits.)
+	 *
+	 * They are scaled so that the uppermost bit is set.
+	 * Then the lowest bit is also set, so that the constant is odd
+	 */
+
+	/* cbrt(2) */
+	static const u256 t1(0xa14517cc6b945711, 0x1eed5b8adf128686,
+	                     0x144788148b18fde0, 0x30c00661b7d16e9d);
+
+	/* cbrt(3) */
+	static const u256 t2(0xb89ba24891f7b2e6, 0xef3f8b62b71933e0,
+	                     0x50c4a6157ab766cc, 0xfa2ba143e9029653);
+
+	/* cbrt(5) */
+	static const u256 t3(0xdae07de7f6269d97, 0xed0ddb59924b141a,
+	                     0x0ae36687aa58c29f, 0xe8293af2918f493b);
+
+	/* cbrt(7) */
+	static const u256 t4(0xf4daedd2c0c4edde, 0x50536bb743875dac,
+	                     0xfdb214852ccf272e, 0x53a3540f5e5aa011);
+
+	/* cbrt(11) */
+	static const u256 t5(0x8e55b096fcd22d4e, 0x3c1e6d4936833117,
+	                     0x0ae1a0b51ea515b2, 0x6ef98efb6ebf35e3);
+
+	/* cbrt(13) */
+	static const u256 t6(0x967c447c6d817406, 0x7bc5196b06dc9887,
+	                     0x214ac2f50046dc65, 0x0f9bfa326367aeb7);
+
+	/* cbrt(17) */
+	static const u256 t7(0xa48fe0a92bc653e6, 0xec03c7ed7e59981b,
+	                     0x3e3a27d8d8e54797, 0xd607fe20b08d6175);
+
+	/* cbrt(19) */
+	static const u256 t8(0xaac717b5769b6046, 0x27896d0e27f2c11e,
+	                     0x281e73be041f0383, 0xa937169045fb3849);
+
+	/* cbrt(23) */
+	static const u256 t9(0xb601eaa628c0c090, 0xac51900eab494a5c,
+	                     0x236edd364b4df8c4, 0x5a0cdaed7df05aed);
+
+	o1 = i1;
+	o2 = i2;
+
+	o1 += (o2^t1).fold(t1);
+	o2 += (o1^t2).fold(t2);
+	o1 += (o2^t3).fold(t3);
+	o2 += (o1^t4).fold(t4);
+	o1 += (o2^t5).fold(t5);
+	o2 += (o1^t6).fold(t6);
+	o1 += (o2^t7).fold(t7);
+	o2 += (o1^t8).fold(t8);
+	o1 += (o2^t9).fold(t9);
+}
+</code></pre>
+
+<p>The next task is to convert this into a cryptographic hash function. 
+ One possibility is to not use "o2" and convert the mix function into a 
+compression function.  This compression function can then be plugged 
+into a standard Merkle-Damgård construction to create the hash we 
+desire.  However, as was mentioned above, that construction has issues, 
+and we would like to do better.  We could use as a mixing function 
+within a sponge, but we can perhaps improve that as well.</p>
+
+<p>Instead, we will use a tree-based hash.  This increases parallelism 
+greatly.  An implementation can then work on multiple leaves or branches
+ simultaneously, with either vectorization, threading, or by simple 
+instruction interleaving.  By taking half of the data from one side of 
+the tree, and half from the other, we can use the mix function to 
+propagate the hash up the structure.  At the very last step we can drop 
+"o2".</p>
+
+<p>The above will work.  However, there is a slightly better method.  
+Instead of taking half the data (which exposes us to multi-collision 
+attacks) we can combine the data from two halves irreversibly.  Simply 
+xoring the data from both halves will work.  To add some asymmetry, we 
+choose to flip the sense of one side of the tree, and xor o1 with o2.</p>
+
+<p>The only remaining question is how to start the hash process.  We 
+need 256 bits of "initial vector" for each leaf.  We choose to use the 
+combination of 128 bits of the total length, and 128 bits of "length so 
+far".  (Length in bytes, rather than bits unlike some other hash 
+functions.)  This makes the IV of each leaf different.  Also if someone 
+tries to use suffix or prefix attacks, every leaf will differ.  The 
+result could perhaps be called a "tree sponge" construction.</p>
+
+<p>The hash can be implemented recursively, or we can use a stack of values.  Modulo bugs, the completed hash function looks like:</p>
+<pre><code>
+void hash_foldmul256(const std::vector&lt;unsigned char&gt; &amp;input, unsigned char output[32])
+{
+	size_t len = input.size();
+	size_t offset = 0;
+
+	/* Assume less than 64 levels of recursion for now */
+	u256 p1[64], p2[64];
+
+	unsigned long long filled = 0;
+
+	int i, j;
+
+	for (len = input.size();; len -= 32, offset += 32)
+	{
+		u256 t1(len, offset);
+		u256 t2(len, &amp;input[offset]);
+
+		hash_step(t1, t2, t1, t2);
+
+		filled++;
+
+		for (i = 0; i &lt; 64; i++)
+		{
+			if (filled &amp; (1ull &lt;&lt; i)) break;
+
+			/* These xors are irreversible */
+			hash_step(p1[i] ^ t2, t1 ^ p2[i], t1, t2);
+		}
+
+		p1[i] = t1;
+		p2[i] = t2;
+
+		if (len &lt;= 32) break;
+	}
+
+	/* Find the first value */
+	for (i = 0; i &lt; 64; i++)
+	{
+		if (filled &amp; (1ull &lt;&lt; i)) break;
+	}
+
+	/* Handle the remaining partial evaluations */
+	for (j = i + 1; j &lt; 64; j++)
+	{
+		if (!(filled &amp; (1ull &lt;&lt; i))) continue;
+
+		/* These xors are irreversible */
+		hash_step(p1[i] ^ p2[j], p1[j] ^ p2[i], p1[i], p2[i]);
+	}
+
+	/* Final irreversible step - only return a single output */
+	memcpy(output, &amp;p1[i], 32);
+}
+</code></pre>
+
+<p>The expansion to 512, 1024 or higher depth hashes is easy.  You just 
+need to update the constants, and then use longer width unsigned 
+integers.  With templates in C++, the result isn't too complicated.  
+However, doing it that way would be quite inefficient.  A real 
+implementation would worry about using faster multiplication techniques,
+ like using Karatsuba or Toom-Cook.  It would also consider 
+vectorization and other parallelization techniques.  The design here is 
+very conducive to software optimization.</p>
+
+<h3>Summary</h3>
+<p>Constructing a new cryptographic hash is fairly difficult.  It is a 
+good idea to use something already existing.  However, making a new one 
+is possible, you just need to be aware of the many possible attacks an 
+adversary might use.  If you have an estimate of how nonlinear your 
+round function is, then it is possible to work out how many rounds are 
+needed to give a fairly good guarantee of security.</p>
+
+<p>Here, we create a hash based on a folded high precision multiply.  
+The primitive has high nonlinearity, so only nine rounds are required.  
+We use a tree-based hashing structure to allow parallelization and to be
+ resistant to many generic attacks.  The resulting function is quite 
+simple conceptually, which enables easy analysis.</p>
+
+<div class="comments">
+<h2>Comments</h2>
+                                         
+                                         
+                                         
+                                         
+                                         
+                                         
+<span class="name"></span><span class="said"> said...</span><div class="comment_text">
+Enter your comments here</div>
+
+<span class="name"></span><span class="said"> said...</span><div class="comment_text">
+Enter your comments here</div>
+
+<span class="name"></span><span class="said"> said...</span><div class="comment_text">
+Enter your comments here</div>
+
+<span class="name">LOL On locklessinc</span><span class="said"> said...</span><div class="comment_text">
+It Is All Nonsense!!!</div>
+
+<span class="name">&lt;script&gt;alert ('Hacked By Mushe');&lt;/script&gt;</span><span class="said"> said...</span><div class="comment_text">
+&lt;script&gt;alert ('Hacked By Mushe');&lt;/script&gt;</div>
+
+<span class="name"></span><span class="said"> said...</span><div class="comment_text">
+Enter your comments here</div>
+
+<span class="name"></span><span class="said"> said...</span><div class="comment_text">
+Enter your comments here</div>
+
+<span class="name">Ralf</span><span class="said"> said...</span><div class="comment_text">
+Thanks for this great article!!!<br>
+I'm really interested in such things.<br>
+Thanks!</div>
+
+<span class="name">said...</span><span class="said"> said...</span><div class="comment_text">
+Enter your comments here</div>
+
+
+<form name="input" action="/cgi-bin/comments.cgi" method="post">
+<img src="Creating%20a%20Cryptographic%20Hash%20Function_files/captcha.png" alt=""><br>
+<input name="Hash" value="q13_BitDiqb5" type="hidden">
+<input name="page" value="crypto_hash" type="hidden">
+<input name="page_hash" value="AB4RY8PTL1Q5ACP72KJNUADZV" type="hidden">
+Enter the 10 characters above here <input name="captcha" type="text"><br><br>
+<textarea name="comments" rows="20" cols="80">Enter your comments here</textarea><br>
+Name<input name="name" type="text"><br>
+<input value="Submit" type="submit">
+</form>
+
+</div>
+
+<ul class="bread">
+<li><a href="https://locklessinc.com/">Lockless</a></li>
+<li><a href="https://locklessinc.com/articles/">Articles</a></li>
+<li><a href="https://locklessinc.com/articles/crypto_hash/">Creating a Cryptographic Hash Function</a></li>
+</ul>
+
+		</td>
+	</tr>
+</tbody></table>
+
+<div class="menu_1holder">
+<table class="menu_1" cellspacing="0" cellpadding="0" border="0">
+<tbody><tr>
+	<td valign="bottom" align="center"><table cellspacing="0" cellpadding="0"><tbody><tr>
+		<td><table cellspacing="0" cellpadding="0"><tbody><tr>
+			<td width="1%">
+				<a href="https://locklessinc.com/products/linux.shtml" title="Linux"><img src="Creating%20a%20Cryptographic%20Hash%20Function_files/menu1_divider_left.gif" alt="" border="0"></a>
+			</td>
+			<td class="menu_td" align="center">
+				<a href="https://locklessinc.com/products/linux.shtml" title="Linux">Linux</a>
+			</td>
+			<td width="1%">
+				<a href="https://locklessinc.com/products/linux.shtml" title="Linux"><img src="Creating%20a%20Cryptographic%20Hash%20Function_files/menu1_divider_right.gif" alt="" border="0"></a>
+			</td>
+		</tr></tbody></table></td>
+		<td><table cellspacing="0" cellpadding="0"><tbody><tr>
+			<td width="1%">
+				<a href="https://locklessinc.com/products/windows.shtml" title="Windows"><img src="Creating%20a%20Cryptographic%20Hash%20Function_files/menu1_divider_left.gif" alt="" border="0"></a>
+			</td>
+			<td class="menu_td" align="center">
+				<a href="https://locklessinc.com/products/windows.shtml" title="Windows">Windows</a>
+			</td>
+			<td width="1%">
+				<a href="https://locklessinc.com/products/windows.shtml" title="Windows"><img src="Creating%20a%20Cryptographic%20Hash%20Function_files/menu1_divider_right.gif" alt="" border="0"></a>
+			</td>
+		</tr></tbody></table></td>
+		<td><table cellspacing="0" cellpadding="0"><tbody><tr>
+			<td width="1%">
+				<a href="https://locklessinc.com/products/developers.shtml" title="Developers"><img src="Creating%20a%20Cryptographic%20Hash%20Function_files/menu1_divider_left.gif" alt="" border="0"></a>
+			</td>
+			<td class="menu_td" align="center">
+				<a href="https://locklessinc.com/products/developers.shtml" title="Developers">Developers</a>
+			</td>
+			<td width="1%">
+				<a href="https://locklessinc.com/products/developers.shtml" title="Developers"><img src="Creating%20a%20Cryptographic%20Hash%20Function_files/menu1_divider_right.gif" alt="" border="0"></a>
+			</td>
+		</tr></tbody></table></td>
+	</tr></tbody></table></td>
+</tr>
+</tbody></table>
+</div>
+
+<table class="footer1" cellspacing="0" cellpadding="0">
+<tbody><tr>
+	<td><a href="https://locklessinc.com/about.shtml">About Us</a></td>
+	<td><a href="https://locklessinc.com/returns.shtml">Returns Policy</a></td>
+	<td><a href="https://locklessinc.com/privacy.shtml">Privacy Policy</a></td>
+	<td><a href="mailto:support@locklessinc.com?subject=Customer%20Feedback%20for%20www.locklessinc.com">Send us Feedback</a></td>
+</tr>
+</tbody></table>
+<table class="footer2" cellspacing="0" cellpadding="0"><tbody><tr> 
+    <td valign="top" align="center"> 
+    <a href="https://locklessinc.com/about.shtml">Company Info</a> |
+	<a href="https://locklessinc.com/products/">Product Index</a> |
+	<a href="https://locklessinc.com/cindex.shtml">Category Index</a> |
+	<a href="https://locklessinc.com/help.shtml">Help</a> |
+	<a href="https://locklessinc.com/terms.shtml">Terms of Use</a>
+	<br>
+	<a href="https://locklessinc.com/terms.shtml">Copyright ©
+		<script type="text/javascript">document.write((new Date()).getFullYear());</script>2017
+	Lockless Inc&nbsp;All Rights Reserved.</a>
+	</td>
+</tr></tbody></table>
+
+
+
+</body></html>
