@@ -10,7 +10,7 @@ Maru 2 for 64-bit architecture also uses the Speck Block cipher with 128-bit blo
 
 The Davies-Meyer construction is used to derive a hash of input.
 
-![](https://github.com/odzhan/maruhash/blob/master/img/dm_simple.png)
+![](https://github.com/odzhan/maru/blob/master/img/dm_simple.png)
 
 The Davies–Meyer single-block-length compression function feeds each block of the message (mi) as the key to a block cipher. 
 
@@ -78,4 +78,4 @@ For Clang, type: **make clang**
 
 This is Maru the cat.
 
-![](https://github.com/odzhan/maruhash/blob/master/img/maru_cat.png)
+![](https://github.com/odzhan/maru/blob/master/img/maru_cat.png)
