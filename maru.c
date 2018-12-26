@@ -29,64 +29,53 @@
 
 #include "maru.h"
 
-#define E speck64_encrypt
+#define E speck64
 
-uint64_t speck64_encrypt(const void *buf, const void *key)
-{
-    uint32_t  x0, x1;
-    uint32_t  k0, k1, k2, k3;
-    uint32_t  i, t;
-    w64_t     r;
+#define R(v,n)(((v)>>(n))|((v)<<(32-(n))))
+#define F(n)for(i=0;i<n;i++)
+typedef unsigned int W;
+typedef unsigned long long Q;
 
-    w64_t     *x=(w64_t*)buf;
-    w128_t    *k=(w128_t*)key;
+// SPECK-64/128
+Q speck64(void*mk,void*p){
+  W k[4],*x=p,i,t;
+  union {W w[2]; Q q;}r;
+  
+  F(4)k[i]=((W*)mk)[i];
+  r.w[0]=x[0],r.w[1]=x[1];
+  
+  F(27)
+    r.w[0]=(R(r.w[0],8)+r.w[1])^*k,
+    r.w[1]=R(r.w[1],29)^r.w[0],
+    t=k[3],
+    k[3]=(R(k[1],8)+*k)^i,
+    *k=R(*k,29)^k[3],
+    k[1]=k[2],k[2]=t;
     
-    // load key
-    k0 = k->w[0]; k1 = k->w[1];
-    k2 = k->w[2]; k3 = k->w[3];
-
-    // load data
-    x0 = x->w[0]; x1 = x->w[1];
-
-    for (i=0; i<27; i++) {
-      // encrypt block
-      x0 = (ROTR32(x0, 8) + x1) ^ k0;
-      x1 =  ROTL32(x1, 3) ^ x0;
-      
-      // create next subkey
-      k1 = (ROTR32(k1, 8) + k0) ^ i;
-      k0 =  ROTL32(k0, 3) ^ k1;
-      
-      XCHG(k3, k2);
-      XCHG(k3, k1);    
-    }
-    // store result
-    r.w[0] = x0; r.w[1] = x1;
-    return r.q;    
+  return r.q;
 }
 
-uint64_t maru (const char *key, uint32_t seed)
-{
-    w64_t     h;
-    w128_t    m;
-    uint32_t  len, idx, end;
+uint64_t maru(const char *key, uint32_t seed) {
+    w64_t    h;
+    w128_t   m;
+    uint32_t len, idx, end;
 
     // initialize H with seed
     h.q = MARU_INIT_H ^ seed;
     
-    for (idx=0, len=0, end=0; !end; ) {
+    for(idx=0,len=0,end=0;!end;) {
       // end of string or max len?
-      if (key[len]==0 || len==MARU_KEY_LEN) {
+      if(key[len]==0||len==MARU_KEY_LEN) {
         // zero remainder of M
-        memset (&m.b[idx], 0, (MARU_BLK_LEN - idx));
+        memset (&m.b[idx],0,(MARU_BLK_LEN-idx));
         // add end bit
-        m.b[idx] = 0x80;
+        m.b[idx]=0x80;
         // have we space in M for len?
-        if (idx >= MARU_BLK_LEN-4) {
+        if(idx>=MARU_BLK_LEN-4) {
           // no, update H with E
-          h.q ^= E(&h, &m);
+          h.q^=E(&m,&h);
           // zero M
-          memset (m.b, 0, MARU_BLK_LEN);
+          memset(m.b,0,MARU_BLK_LEN);
         }
         // add total len in bits
         m.w[(MARU_BLK_LEN/4)-1] = (len * 8);
@@ -98,7 +87,7 @@ uint64_t maru (const char *key, uint32_t seed)
       }
       if (idx == MARU_BLK_LEN) {
         // update H with E
-        h.q ^= E(&h, &m);
+        h.q ^= E(&m,&h);
         idx = 0;
       }
     }  
@@ -136,7 +125,7 @@ const char *api_hash[]=
 "1fe2b4022329d506",
 "266463b00358a9c1",
 "78c81b82d46f0911",
-"3ff08f5d430d3505",
+"53ed0f022664badf",
 
 "b2699837d95a5676",
 "160b1af43901f372",
@@ -145,7 +134,7 @@ const char *api_hash[]=
 "e7a65274d1119a11",
 "1be8cfb13685af69",
 "5f5e9ebd5ed563f8",
-"25193f0059cf1199",
+"ff2506b64ee5b9ea",
 
 "954858cbd57e32d7",
 "3e922a5892a9de96",
@@ -154,7 +143,7 @@ const char *api_hash[]=
 "53c10a7fee4a0e7c",
 "491df8b4f6a49d91",
 "6dd6dda9dcb1497c",
-"45fec7d1bb5441eb" };
+"6cac5f2c04bd721c" };
   
 uint32_t hex2bin (void *bin, const char *hex) {
     uint32_t len, i;

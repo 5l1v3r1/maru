@@ -35,83 +35,52 @@ void bin2hex(void*, int);
 
 #ifndef CHASKEY
 
-#define E speck128_encrypt
+#define E speck128
+#define R(v,n)(((v)>>(n))|((v)<<(64-(n))))
+#define F(n)for(i=0;i<n;i++)
+typedef unsigned long long W;
 
-// 256-bit keys and 128-bit blocks
-void speck128_encrypt(const void *in, const void *key, void *out)
-{
-    uint64_t x0, x1;
-    uint64_t k0, k1, k2, k3;
-    uint64_t i, t;
+void speck128(void*in,void*mk,void*out){
+  W i,t,k[4],*r=(W*)out,*h=(W*)in;
 
-    w128_t   *x=(w128_t*)in;
-    w128_t   *r=(w128_t*)out;
-    w256_t   *k=(w256_t*)key;
-    
-    // load key
-    k0 = k->q[0]; k1 = k->q[1];
-    k2 = k->q[2]; k3 = k->q[3];
-
-    // load data
-    x0 = x->q[0]; x1 = x->q[1];
-
-    for (i=0; i<34; i++) {
-      // encrypt block
-      x0 = (ROTR64(x0, 8) + x1) ^ k0;
-      x1 =  ROTL64(x1, 3) ^ x0;
-      
-      // create next subkey
-      k1 = (ROTR64(k1, 8) + k0) ^ i;
-      k0 =  ROTL64(k0, 3) ^ k1;
-
-      // rotate left 64-bits
-      XCHG(k3, k2);
-      XCHG(k3, k1);     
-    }
-    // store result
-    r->q[0] = x0; r->q[1] = x1;    
+  memcpy(r,in,16);
+  memcpy(k,mk,32);
+  
+  F(34)
+    r[1]=(R(r[1],8)+*r)^*k,
+    *r=R(*r,61)^r[1],
+    t=k[3],
+    k[3]=(R(k[1],8)+*k)^i,
+    *k=R(*k,61)^k[3],
+    k[1]=k[2],k[2]=t;
 }
 
 #else
 
-#define E chaskey_encrypt
+#define E chaskey
+#define R(v,n)(((v)>>(n))|((v)<<(32-(n))))
+#define F(n)for(i=0;i<n;i++)
+typedef unsigned long long W;
 
 // 128-bit keys and 128-bit blocks
-
-void chaskey_encrypt(const void *in, const void *key, void *out)
-{
-    int      i;
-    uint32_t *v=(uint32_t*)out;
-    uint32_t *k=(uint32_t*)key;
-
-    memcpy(out, in, 16);
+void chaskey(void*in,void*mk,void*out) {
+  W *k=(W*)mk,*r=(W*)out,*h=(W*)in;
+  unsigned int i,*x=(unsigned int*)r;
+  
+  F(2)r[i]=h[i]^k[i];
+  
+  F(12)
+    *x+=x[1],
+    x[1]=R(x[1],27)^*x,
+    x[2]+=x[3],
+    x[3]=R(x[3],24)^x[2],
+    x[2]+=x[1],
+    *x=R(*x,16)+x[3],
+    x[3]=R(x[3],19)^*x,
+    x[1]=R(x[1],25)^x[2],
+    x[2]=R(x[2],16);
     
-    // pre-whiten
-    for (i=0; i<4; i++) {
-      v[i] ^= k[i];
-    }
-
-    // apply permutation function
-    for (i=0; i<12; i++) {
-      v[0] += v[1]; 
-      v[1]=ROTL32(v[1], 5); 
-      v[1] ^= v[0]; 
-      v[0]=ROTL32(v[0],16);       
-      v[2] += v[3]; 
-      v[3]=ROTL32(v[3], 8); 
-      v[3] ^= v[2];
-      v[0] += v[3]; 
-      v[3]=ROTL32(v[3],13); 
-      v[3] ^= v[0];
-      v[2] += v[1]; 
-      v[1]=ROTL32(v[1], 7); 
-      v[1] ^= v[2]; 
-      v[2]=ROTL32(v[2],16);
-    }
-    // post-whiten
-    for (i=0; i<4; i++) {
-      v[i] ^= k[i];
-    }
+  F(2)r[i]^=k[i];
 }
 
 #endif
@@ -188,60 +157,60 @@ const uint64_t seed_tbl[]=
 
 #ifndef CHASKEY  
 const char *api_hash[]=
-{"f026116e5e0313d4cc47f0cbdc5699ce",
-"06cc8da8d772943a8e4207418d0a9c5d",
-"4efabe1a0f3ef797fd4aab807e40da29",
-"64477f13f7890a67dd6b98b00b4aacae",
-"e91b709635e7d4a6458a07f813c7853e",
-"e501f9c49f66f53fe0c9a25b33790285",
-"69b0e9d96be59fccd965bb2ec7e88e88",
-"29ca8db3ecd2d3043556a0a13f7e70ba",
-
-"22499e49aae0a5404773bc0207676aa8",
-"8dfed83c24d6959f0dcd10ecae0353da",
-"81a04f91e9b83505f7f53623491d1930",
-"20439389549f7734737663c50d042a9d",
-"1ccf4467936d2d12c0e8255e29a02cd1",
-"eacf447db6bcbdb167b46d307eaf011e",
-"dceb7bdda1fb4b1d0854385b619aaf28",
-"50743057adfcdc2bef36ab2816a51163",
-
-"dac9f623ac7a8bf6751de2b8f7ab0e98",
-"a589595037d26f2f2f9a5437b5550117",
-"6e4b9e0b2491b2e4c8b6cdcb50867468",
-"4d8bb4b3b7972418a5e124a2c05522b2",
-"a7c0f50dc720744d7fe6cd3438ac96ba",
-"273ef74c77dbcb9ece5994894fc9bdee",
-"563b94958d937030c8675b51da26e80d",
-"945fe9b6b62a6a920e74ec5d51323af8" };
-#else
-const char *api_hash[]=
 {"54be451bb469019342f8e59d72c73977",
-"1785cd6d7c6fca19212a0b9e038383ca",
+"2ec18e184293e002e7ca996342192e05",
 "568f103d5af848a93b008c7b616efd31",
 "b4c7871c02689facfc9d33a52087fc8f",
 "1083cdc471478a88fb4ac75d2db480c9",
 "503ab74f73f6f6c2fbf3065d190c2f19",
 "71b977be78e66fca24afe24fdc8bc198",
-"789f0f447d89f56c6a09d35213acf66d",
+"1841c661b87fb7e6879621f4f09ca636",
 
 "b0e3d9c84ab287bbc6160f33d08ff692",
-"1d1e1d4f43c40d0a044c442647bf4b55",
+"c70033a3855b3cf45fb8c76269bb7083",
 "6072eff84649be594bbd091cc93b8951",
 "2ba8e61d11fdda163bb07df614dc5d84",
 "8ade5c23caf20853c7237f3d4fcdcaf6",
 "6da2b4b3ea6feb384f6acabe369e865b",
 "1862340516faa957f430f88bdf9ccb06",
-"acfd5426d080982464a0804fddfc4042",
+"c50ae50471bffe33dbe894fbd025eba4",
 
 "761a74e4141beb06eefeb484278695d4",
-"9021b9bf9740181535ea8d4219cec778",
+"1fdb8c8aa1a5c7a7fcd139462254ae10",
 "bf8b48c0b0418701894d72e31259b764",
 "7a292cf938788c4655bed14857aa8e38",
 "ca64dd43b61615a1007f6f6690d2ef98",
 "c00792b2feb4dbad15b0f1aefe1c6b7f",
 "75e08a5ddf2559ee0957a6e394abf940",
-"39ce169896cfc482f5c96d225d10eeb3" };
+"be73af81cce67c57a933b934ce8e309f"};
+#else
+const char *api_hash[]=
+{"54be451bb469019342f8e59d72c73977",
+"2ec18e184293e002e7ca996342192e05",
+"568f103d5af848a93b008c7b616efd31",
+"b4c7871c02689facfc9d33a52087fc8f",
+"1083cdc471478a88fb4ac75d2db480c9",
+"503ab74f73f6f6c2fbf3065d190c2f19",
+"71b977be78e66fca24afe24fdc8bc198",
+"1841c661b87fb7e6879621f4f09ca636",
+
+"b0e3d9c84ab287bbc6160f33d08ff692",
+"c70033a3855b3cf45fb8c76269bb7083",
+"6072eff84649be594bbd091cc93b8951",
+"2ba8e61d11fdda163bb07df614dc5d84",
+"8ade5c23caf20853c7237f3d4fcdcaf6",
+"6da2b4b3ea6feb384f6acabe369e865b",
+"1862340516faa957f430f88bdf9ccb06",
+"c50ae50471bffe33dbe894fbd025eba4",
+
+"761a74e4141beb06eefeb484278695d4",
+"1fdb8c8aa1a5c7a7fcd139462254ae10",
+"bf8b48c0b0418701894d72e31259b764",
+"7a292cf938788c4655bed14857aa8e38",
+"ca64dd43b61615a1007f6f6690d2ef98",
+"c00792b2feb4dbad15b0f1aefe1c6b7f",
+"75e08a5ddf2559ee0957a6e394abf940",
+"be73af81cce67c57a933b934ce8e309f" };
 #endif
   
 uint32_t hex2bin (void *bin, const char *hex) {
@@ -344,7 +313,6 @@ char* getparam (int argc, char *argv[], int *i)
 
 int main(int argc, char *argv[])
 {
-    uint64_t   h, x;
     int        i, j, equ;
     const char **p=api_hash;
     char       key[MARU2_KEY_LEN+1];
