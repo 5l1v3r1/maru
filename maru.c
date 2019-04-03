@@ -29,69 +29,77 @@
 
 #include "maru.h"
 
-#define E speck64
-
-#define R(v,n)(((v)>>(n))|((v)<<(32-(n))))
-#define F(n)for(i=0;i<n;i++)
-typedef unsigned int W;
-typedef unsigned long long Q;
-
 // SPECK-64/128
-Q speck64(void*mk,void*p){
-  W k[4],*x=p,i,t;
-  union {W w[2]; Q q;}r;
-  
-  F(4)k[i]=((W*)mk)[i];
-  r.w[0]=x[0],r.w[1]=x[1];
-  
-  F(27)
-    r.w[0]=(R(r.w[0],8)+r.w[1])^*k,
-    r.w[1]=R(r.w[1],29)^r.w[0],
-    t=k[3],
-    k[3]=(R(k[1],8)+*k)^i,
-    *k=R(*k,29)^k[3],
-    k[1]=k[2],k[2]=t;
+uint64_t speck(void *mk, uint64_t p) {
+    uint32_t k[4], i, t;
+    union {
+      uint32_t w[2];
+      uint64_t q;
+    } x;
     
-  return r.q;
+    // copy plaintext to local buffer
+    x.q = p;
+    
+    // copy master key to local buffer
+    for(i=0;i<4;i++) k[i]=((uint32_t*)mk)[i];
+    
+    for(i=0;i<27;i++) {
+      // encrypt plaintext
+      x.w[0] = (ROTR32(x.w[0], 8) + x.w[1]) ^ k[0],
+      x.w[1] =  ROTR32(x.w[1],29) ^ x.w[0], t = k[3],
+      
+      // create next subkey
+      k[3] = (ROTR32(k[1],8)  + k[0]) ^ i,
+      k[0] =  ROTR32(k[0],29) ^ k[3],
+      k[1] = k[2], k[2] = t;
+    }
+    // return 64-bit ciphertext
+    return x.q;
 }
 
-uint64_t maru(const char *key, uint32_t seed) {
-    w64_t    h;
-    w128_t   m;
-    uint32_t len, idx, end;
-
-    // initialize H with seed
-    h.q = MARU_INIT_H ^ seed;
+uint64_t maru(const char *api, uint64_t iv) {
+    uint64_t h;
+    uint32_t len, idx, end, i;
     
-    for(idx=0,len=0,end=0;!end;) {
+    union {
+      uint8_t  b[MARU_BLK_LEN];
+      uint32_t w[MARU_BLK_LEN/4];
+    } m;
+    
+    // set H to initial value
+    h = iv;
+    
+    for(idx=0, len=0, end=0;!end;) {
       // end of string or max len?
-      if(key[len]==0||len==MARU_KEY_LEN) {
+      if(api[len] == 0 || len == MARU_MAX_STR) {
         // zero remainder of M
-        memset (&m.b[idx],0,(MARU_BLK_LEN-idx));
-        // add end bit
-        m.b[idx]=0x80;
-        // have we space in M for len?
-        if(idx>=MARU_BLK_LEN-4) {
+        for(i=idx;i<MARU_BLK_LEN;i++) m.b[i]=0;
+        // store the end bit
+        m.b[idx] = 0x80;
+        // have we space in M for api length?
+        if(idx >= MARU_BLK_LEN - 4) {
           // no, update H with E
-          h.q^=E(&m,&h);
+          h ^= MARU_CRYPT(&m, h);
           // zero M
-          memset(m.b,0,MARU_BLK_LEN);
+          for(i=0;i<MARU_BLK_LEN;i++) m.b[i]=0;
         }
-        // add total len in bits
+        // store total length in bits
         m.w[(MARU_BLK_LEN/4)-1] = (len * 8);
         idx = MARU_BLK_LEN;
         end++;
       } else {    
-        // add byte to M
-        m.b[idx++] = (uint8_t)key[len++];
+        // store character from api string
+        m.b[idx] = (uint8_t)api[len]; 
+        idx++; len++;
       }
-      if (idx == MARU_BLK_LEN) {
+      if(idx == MARU_BLK_LEN) {
         // update H with E
-        h.q ^= E(&m,&h);
+        h ^= MARU_CRYPT(&m, h);
+        // reset idx
         idx = 0;
       }
     }  
-    return h.q;
+    return h;
 }
 
 #ifdef TEST
@@ -112,38 +120,38 @@ const char *api_tbl[]=
   "TerminateProcess",
   "CloseHandle"  };
 
-const uint32_t seed_tbl[]=
+const uint32_t iv_tbl[]=
 { 0xB467369E,    // hex(trunc(frac(sqrt(137))*(2^32)))
   0xCA320B75,    // hex(trunc(frac(sqrt(139))*(2^32)))
   0x34E0D42E  }; // hex(trunc(frac(sqrt(149))*(2^32)))
 
 const char *api_hash[]=
-{"e2fb9bb4c3758a47",
-"96b79c69c710a521",
-"77ef46fd685606d0",
-"7f3a4529f4cae9bd",
-"1fe2b4022329d506",
-"266463b00358a9c1",
-"78c81b82d46f0911",
-"53ed0f022664badf",
+{ "dfa1de9f2ba8bb90", 
+  "ca373df6574bb594", 
+  "dc6be1f8f896bf39", 
+  "6a5e1a9191abf9f9", 
+  "f4f085f3b39948ef", 
+  "69049dac4d5f0611", 
+  "30e1b9c4fd652a0f", 
+  "3c70ee014de21690", 
 
-"b2699837d95a5676",
-"160b1af43901f372",
-"bec9deaea797e972",
-"38f6ef3e0533ae3a",
-"e7a65274d1119a11",
-"1be8cfb13685af69",
-"5f5e9ebd5ed563f8",
-"ff2506b64ee5b9ea",
+  "1321263095680c87", 
+  "6ea346f388a28beb",
+  "df623104f7900c12", 
+  "1966b0ac553e7432",
+  "d46e329d6e9e0bc6", 
+  "eeea2f3292ea27c7", 
+  "e17428c9c3fb37f6",
+  "4674a23abf321378",
 
-"954858cbd57e32d7",
-"3e922a5892a9de96",
-"ba03d4ccac3317e1",
-"cc546fa3b6616aad",
-"53c10a7fee4a0e7c",
-"491df8b4f6a49d91",
-"6dd6dda9dcb1497c",
-"6cac5f2c04bd721c" };
+  "2b775ce7bb962b8a", 
+  "dec1c645b6efb8d4", 
+  "62d3ec77dd71caef", 
+  "2537e3bdd94a6542",
+  "aeb84fbc1c43b36c", 
+  "40722f8ef4c72300",
+  "075637c9e4bb3222", 
+  "06402c602f4ad7a0" };
   
 uint32_t hex2bin (void *bin, const char *hex) {
     uint32_t len, i;
@@ -182,9 +190,9 @@ void inc_buf(void *buf, int mlen) {
     }  
 }
 
-// ./maru -t <64-bit seed> | dieharder -a -g 200
-void diehard(uint32_t seed) {
-    uint8_t  key[MARU_KEY_LEN+1];
+// ./maru -t <64-bit iv> | dieharder -a -g 200
+void diehard(uint32_t iv) {
+    uint8_t  key[MARU_MAX_STR+1];
     int      i;
     uint64_t h;
     
@@ -192,28 +200,28 @@ void diehard(uint32_t seed) {
 
     for (i=0; ; i++) {
       // increment string buffer
-      inc_buf(key, MARU_KEY_LEN);
+      inc_buf(key, MARU_MAX_STR);
       // generate hash
-      h = maru((const char*)key, seed);
+      h = maru((const char*)key, iv);
       // write to stdout
       fwrite(&h, sizeof(h), 1, stdout);
     }
 }
 
-uint32_t get_seed(const char *s) {
-    uint32_t seed;
+uint32_t get_iv(const char *s) {
+    uint32_t iv;
     
     // if it exceeds max, ignore it
-    if (strlen(s) != MARU_SEED_LEN*2) {
-      printf ("Invalid seed length. Require 8-byte hexadecimal string\n");
+    if (strlen(s) != MARU_IV_LEN*2) {
+      printf ("Invalid iv length. Require 8-byte hexadecimal string\n");
       exit(0);
     }
     // convert hexadecimal value to binary
-    if (!hex2bin(&seed, s)) {
-      printf ("Failure to convert seed \"%s\" to binary\n", s);
+    if (!hex2bin(&iv, s)) {
+      printf ("Failure to convert iv \"%s\" to binary\n", s);
       exit(0);
     }
-    return seed;
+    return iv;
 }          
 
 /**F*****************************************************************/
@@ -236,10 +244,10 @@ int main(int argc, char *argv[])
     uint64_t   h=0, x;
     int        i, j;
     const char **p=api_hash;
-    char       key[MARU_KEY_LEN+1];
+    char       key[MARU_MAX_STR+1];
     char       opt;
     char       *s;
-    uint32_t   seed=0;
+    uint32_t   iv=0;
     
     for (i=1; i<argc; i++) {
       if (argv[i][0]=='/' || argv[i][0]=='-') {
@@ -249,13 +257,13 @@ int main(int argc, char *argv[])
           case 't':
             // we expect initial value 
             s=getparam(argc, argv, &i);
-            seed=get_seed(s);
-            // test using seed
-            diehard(seed);
+            iv=get_iv(s);
+            // test using iv
+            diehard(iv);
             return 0;           
           default:
-            printf ("usage: %s <key> <seed>\n", argv[0]);
-            printf ("       %s -t <64-bit seed> | dieharder -a -g 200\n", argv[0]);
+            printf ("usage: %s <key> <iv>\n", argv[0]);
+            printf ("       %s -t <64-bit iv> | dieharder -a -g 200\n", argv[0]);
             return 0;
         }
       }
@@ -264,27 +272,27 @@ int main(int argc, char *argv[])
     if (argc==3) {
       memset(key, 0, sizeof(key));
     
-      strncpy((char*)key, argv[1], MARU_KEY_LEN);
+      strncpy((char*)key, argv[1], MARU_MAX_STR);
 
-      seed=get_seed(argv[2]);
+      iv=get_iv(argv[2]);
       
-      h = maru((const char*)key, seed);
+      h = maru((const char*)key, iv);
     
       printf ("\nMaru Hash = %llx\n", (unsigned long long)h);
     } else {
-      // for each seed
-      for (i=0; i<sizeof(seed_tbl)/sizeof(uint32_t); i++) {
+      // for each iv
+      for (i=0; i<sizeof(iv_tbl)/sizeof(uint32_t); i++) {
         putchar('\n');      
         // for each API string
         for (j=0; j<sizeof(api_tbl)/sizeof(char*); j++) {
           hex2bin((void*)&h, *p++);
           // test vectors here need to be byte swapped
-          h = SWAP64(h);
+          h = _byteswap_uint64(h);
           // hash string        
-          x = maru((const char*)api_tbl[j], seed_tbl[i]);        
+          x = maru((const char*)api_tbl[j], iv_tbl[i]);        
           
           printf ("  \"%016llx\", = maru(\"%s\", 0x%08x) : %s\n", 
-            (unsigned long long)x, api_tbl[j], seed_tbl[i], 
+            (unsigned long long)x, api_tbl[j], iv_tbl[i], 
             (h==x) ? "OK" : "FAIL");
         }
       }
