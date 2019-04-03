@@ -59,7 +59,6 @@ void speck(void *in, void *mk, void *out){
 
 #else
 
-#define MARU_CRYPT chaskey
 #define ROTR32(v,n)(((v)>>(n))|((v)<<(32-(n))))
 
 // 128-bit keys and 128-bit blocks
@@ -67,20 +66,25 @@ void chaskey(void*in,void*mk,void*out) {
     uint64_t *k=(uint64_t*)mk,*r=(uint64_t*)out,*h=(uint64_t*)in;
     uint32_t i,*x=(uint32_t*)r;
     
-    F(2)r[i]=h[i]^k[i];
+    // copy plaintext xor key to output 
+    for(i=0;i<2;i++) 
+      r[i] = h[i] ^ k[i];
     
-    F(12)
-      *x+=x[1],
-      x[1]=R(x[1],27)^*x,
-      x[2]+=x[3],
-      x[3]=R(x[3],24)^x[2],
-      x[2]+=x[1],
-      *x=R(*x,16)+x[3],
-      x[3]=R(x[3],19)^*x,
-      x[1]=R(x[1],25)^x[2],
-      x[2]=R(x[2],16);
-      
-    F(2)r[i]^=k[i];
+    // apply 12 rounds of encryption
+    for(i=0;i<12;i++) {
+      x[0] += x[1],
+      x[1]  = ROTR32(x[1], 27) ^ x[0],
+      x[2] += x[3],
+      x[3]  = ROTR32(x[3], 24) ^ x[2],
+      x[2] += x[1],
+      x[0] = ROTR32(x[0], 16) + x[3],
+      x[3] = ROTR32(x[3], 19) ^ x[0],
+      x[1] = ROTR32(x[1], 25) ^ x[2],
+      x[2] = ROTR32(x[2], 16);
+    }
+    // xor ciphertext with key  
+    for(i=0;i<2;i++) 
+      r[i] ^= k[i];
 }
 
 #endif

@@ -35,7 +35,17 @@
 #include <ctype.h>
 #include <stdio.h>
 
+#ifndef ROTR64
 #define ROTR64(v,n)(((v)>>(n))|((v)<<(64-(n))))
+#endif
+
+#ifndef SWAP64
+#ifdef _MSC_VER
+#define SWAP64(x) _byteswap_uint64(x)
+#else
+#define SWAP64(x) __builtin_bswap64(x)
+#endif
+#endif
 
 #define MARU2_MAX_STR   64
 #define MARU2_HASH_LEN  16
@@ -49,8 +59,8 @@
 #define MARU2_BLK_LEN  16 // 128-bit cipher key
 #endif
 
-#define MARU2_INIT_B  _byteswap_uint64(0x316B7D586E478442ULL) // hex(trunc(frac(cbrt(1/139))*(2^64)))
-#define MARU2_INIT_D  _byteswap_uint64(0x80FE410FFD2528DAULL) // hex(or(shr(hex(trunc(cos(1/137)*(2^64)));8);shl(0x80;56)))
+#define MARU2_INIT_B  SWAP64(0x316B7D586E478442ULL) // hex(trunc(frac(cbrt(1/139))*(2^64)))
+#define MARU2_INIT_D  SWAP64(0x80FE410FFD2528DAULL) // hex(or(shr(hex(trunc(cos(1/137)*(2^64)));8);shl(0x80;56)))
 
 #define MARU2_INIT_H  MARU2_INIT_D
 
