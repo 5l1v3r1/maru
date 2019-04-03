@@ -42,8 +42,16 @@
 #define ROTR32(v,n)(((v)>>(n))|((v)<<(32-(n))))
 #endif
 
-#define MARU_INIT_B _byteswap_uint64(0x316B7D586E478442ULL) // hex(trunc(frac(cbrt(1/139))*(2^64)))
-#define MARU_INIT_D _byteswap_uint64(0x80FE410FFD2528DAULL) // hex(or(shr(hex(trunc(cos(1/137)*(2^64)));8);shl(0x80;56)))
+#ifndef SWAP64
+#ifdef _MSC_VER
+#define SWAP64(x) _byteswap_uint64(x)
+#else
+#define SWAP64(x) __builtin_bswap64(x)
+#endif
+#endif
+
+#define MARU_INIT_B SWAP64(0x316B7D586E478442ULL) // hex(trunc(frac(cbrt(1/139))*(2^64)))
+#define MARU_INIT_D SWAP64(0x80FE410FFD2528DAULL) // hex(or(shr(hex(trunc(cos(1/137)*(2^64)));8);shl(0x80;56)))
 
 #ifdef __cplusplus
 extern "C" {

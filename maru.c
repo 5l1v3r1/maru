@@ -287,7 +287,7 @@ int main(int argc, char *argv[])
         for (j=0; j<sizeof(api_tbl)/sizeof(char*); j++) {
           hex2bin((void*)&h, *p++);
           // test vectors here need to be byte swapped
-          h = _byteswap_uint64(h);
+          h = SWAP64(h);
           // hash string        
           x = maru((const char*)api_tbl[j], iv_tbl[i]);        
           
